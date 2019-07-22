@@ -123,7 +123,7 @@ keyHandler stateRef k = do
 
 triggerRebuild ∷ Ref State → String → Pscid Unit
 triggerRebuild stateRef file = do
-  {port, testCommand, testAfterRebuild, censorCodes} ← ask
+  {port, testCommand, testAfterRebuild, censorCodes, outputDirectory } ← ask
   let fileName = changeExtension file "purs"
   liftEffect ∘ catchLog "We couldn't talk to the server" $ launchAff_ do
     result ← sendCommandR port (RebuildCmd fileName Nothing Nothing)
@@ -137,6 +137,10 @@ triggerRebuild stateRef file = do
           Just s → suggestionHint
         when (testAfterRebuild && isRight errs)
           (execCommand "Test" $ printCLICommand testCommand)
+        when (isRight errs) $
+          catchLog "Failed to restart server" $ launchAff_ do
+            restartServer port outputDirectory
+            load port [] []
 
 changeExtension ∷ String → String → String
 changeExtension s ex =
